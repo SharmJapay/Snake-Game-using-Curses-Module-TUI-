@@ -48,6 +48,7 @@ def get_centered_position_x(screen_width, string_text):
     """
 
     centered_position_x = (screen_width - len(string_text)) // 2
+
     return centered_position_x
 
 
@@ -66,15 +67,14 @@ def show_game_over_display(game_screen_window, screen_width, game_score):
     game_over_text = (
         f"Game Over. You're Score is {game_score}. (Press ENTER Key to try again)..."
     )
+    x_position = max(0, get_centered_position_x(screen_width, game_over_text))
 
-    game_screen_window.clear()
-    game_screen_window.addstr(
-        4,
-        get_centered_position_x(screen_width, game_over_text),
-        game_over_text,
-        curses.A_BOLD | curses.A_STANDOUT,
-    )
-    game_screen_window.refresh()
+    try:
+        game_screen_window.clear()
+        game_screen_window.addstr(4, x_position, game_over_text, curses.A_STANDOUT)
+        game_screen_window.refresh()
+    except curses.error:
+        pass
 
 
 def show_game_score_display(game_screen_window, screen_width, game_score):
@@ -90,15 +90,16 @@ def show_game_score_display(game_screen_window, screen_width, game_score):
     """
 
     game_score_text = f"GAME SCORE: {game_score} "
+    x_position = max(0, get_centered_position_x(screen_width, game_score_text))
 
-    game_screen_window.clear()
-    game_screen_window.addstr(
-        0,
-        get_centered_position_x(screen_width, game_score_text),
-        game_score_text,
-        curses.A_BOLD,
-    )
-    game_screen_window.refresh()
+    try:
+        # Move to row 0 and erase only that row's contents
+        game_screen_window.move(0, 0)
+        game_screen_window.clrtoeol()
+        game_screen_window.addstr(0, x_position, game_score_text, curses.A_BOLD)
+        game_screen_window.refresh()
+    except curses.error:
+        pass
 
 
 def create_window(
@@ -117,6 +118,7 @@ def create_window(
     Returns
         created_window [window] - the created new window
     """
+
     created_window = curses.newwin(screen_height, screen_width, position_y, position_x)
     created_window.bkgd(" ", bg_color)
 
@@ -127,19 +129,18 @@ def create_window(
     return created_window
 
 
-def show_header_screen_window(screen_height, screen_width, colors):
-    """Displays the header screen window in the screen
+def create_header_screen_window(screen_width, colors):
+    """Create the header screen window in the screen
 
     Arguments
-        screen_height [int] - the height of the screen
         screen_width [int] - the width of the screen
         colors [list] - A list of all the colors initialized
 
     Returns
-        None
+        header_screen_window - the initialized header screen window created
     """
 
-    header_height, header_width = (screen_height // 5), screen_width
+    header_height, header_width = 7, screen_width
     position_y, position_x = 0, 0
 
     # Create Header Window with its specifications
@@ -154,11 +155,9 @@ def show_header_screen_window(screen_height, screen_width, colors):
 
     # Define all the texts you want to display
     header_text_greeting = "Welcome to Snake Game using Curses Python Module"
-    header_text_controller = (
-        "Controllers: Up Arrow ↑, Down Arrow ↓, Left Arrow ←, Right Arrow →"
-    )
-    header_text_start_game = "Start Game: ENTER Key"
-    header_text_quit_game = "Quit Game: Q or ESC Key"
+    header_text_controller = "(Controllers) : Up ↑, Down ↓, Left ←, Right →"
+    header_text_start_game = "(Start Game) : ENTER Key"
+    header_text_quit_game = "(Quit Game) : Q or ESC Key"
 
     header_screen_window.addstr(
         1,
@@ -185,43 +184,64 @@ def show_header_screen_window(screen_height, screen_width, colors):
         curses.A_BOLD,
     )
 
-    header_screen_window.refresh()
+    return header_screen_window
 
 
-def start_snake_game(game_screen_window, screen_height, screen_width):
+def create_game_screen_window(screen_height, screen_width, colors):
+    """Create the game screen window in the screen
+
+    Arguments
+        screen_height [int] - the height of the screen
+        screen_width [int] - the width of the screen
+        colors [list] - A list of all the colors initialized
+
+    Returns
+        game_screen_window - the initialized game screen window created
+    """
+
+    game_screen_height, game_screen_width = screen_height - 7, screen_width
+    position_y, position_x = 7, 0
+
+    game_screen_window = create_window(
+        game_screen_height,
+        game_screen_width,
+        position_y,
+        position_x,
+        colors["Black"],
+        colors["Black"],
+    )
+
+    return game_screen_window
+
+
+def start_snake_game(game_screen_window, colors):
     """Starts the game
 
     Arguments
         game_screen_window [window] - The initialized game screen window
-        screen_height [int] - the height of the screen
-        screen_width [int] - the width of the screen
-        colors [list] - A list of all the colors initialized
+
     Return
         None
     """
 
-    # INITIALIZE SNAKE GAME VARIABLES
-    # (Game Score, Character, Position, Movement Direction, Speed, Food, Food Position)
+    # SNAKE GAME VARIABLES (Game Score, Snake, Position, Direction, Speed, Food and Position)
+
+    # Initialize game screen: height and width
+    game_screen_height, game_screen_width = game_screen_window.getmaxyx()
 
     # Initialize the starting 'GAME SCORE' and display at the center of the window
     game_score = 0
-    show_game_score_display(game_screen_window, screen_width, game_score)
+    show_game_score_display(game_screen_window, game_screen_width, game_score)
 
-    # Initialize the random starting 'SNAKE POSITION' (tuple)
-    snake_position = (
-        screen_height // random.randint(2, 4),
-        screen_width // random.randint(2, 4),
-    )
+    # Initialize the starting 'SNAKE POSITION' within inner window boundaries (tuple)
+    snake_position = (game_screen_height // 2, game_screen_width // 2)
 
-    # Initialize the 'SNAKE CHARACTER' based on the initialize position (list of tuples)
+    # Initialize the 'SNAKE CHARACTER' (head, body, tail) sequence (list of tuples)
     snake = [
         (snake_position[0], snake_position[1]),
         (snake_position[0], snake_position[1] - 1),
         (snake_position[0], snake_position[1] - 2),
     ]
-
-    # Initialize the 'SNAKE HEAD'
-    snake_head = (snake[0][0], snake[0][1])
 
     # Initialize the starting 'SNAKE MOVEMENT DIRECTION' (right)
     snake_direction = curses.KEY_RIGHT
@@ -230,29 +250,20 @@ def start_snake_game(game_screen_window, screen_height, screen_width):
     snake_speed = 100
     game_screen_window.timeout(snake_speed)
 
-    # Initialize the random starting 'SNAKE FOOD POSITION' (tuple)
+    # Initialize the starting 'SNAKE FOOD POSITION' safely within inner bounds (tuple)
     snake_food = (
-        screen_height // random.randint(2, 4),
-        screen_width // random.randint(2, 4),
+        random.randint(1, game_screen_height - 2),
+        random.randint(1, game_screen_width - 2),
     )
 
-    # Initialize the 'SNAKE FOOD' based on the initialize food position
-    game_screen_window.addch(snake_food[0], snake_food[1], "0")
+    # Wrap the starting 'SNAKE FOOD' draw in a try/except to prevent Windows add_wch errors
+    try:
+        game_screen_window.addch(snake_food[0], snake_food[1], "0")
+    except curses.error:
+        pass
 
-    # GAME LOOP EXECUTION
-    # Loops until the snake hits a wall or its own body
+    # GAME LOOP EXECUTION - Loops until the snake hits a wall or its own body
     while True:
-
-        # Create the Snake
-        game_screen_window.addch(snake_head[0], snake_head[1], curses.ACS_BLOCK)
-
-        # Break the Game Loop if the snake head collides with the wall or if it hits its body
-        if (
-            snake[0][0] in (0, screen_height)
-            or snake[0][1] in (0, screen_width)
-            or snake[0] in snake[1:]
-        ):
-            break
 
         # Capture User Key Pressed Value
         key_pressed = game_screen_window.getch()
@@ -262,7 +273,18 @@ def start_snake_game(game_screen_window, screen_height, screen_width):
             break
 
         if key_pressed != -1:
-            snake_direction = key_pressed
+            # Prevent reversing directly into yourself
+            if key_pressed == curses.KEY_DOWN and snake_direction != curses.KEY_UP:
+                snake_direction = key_pressed
+            elif key_pressed == curses.KEY_UP and snake_direction != curses.KEY_DOWN:
+                snake_direction = key_pressed
+            elif key_pressed == curses.KEY_LEFT and snake_direction != curses.KEY_RIGHT:
+                snake_direction = key_pressed
+            elif key_pressed == curses.KEY_RIGHT and snake_direction != curses.KEY_LEFT:
+                snake_direction = key_pressed
+
+        # Create the 'SNAKE HEAD' based on the current forward cell
+        snake_head = (snake[0][0], snake[0][1])
 
         # Validate movement when Keypad Arrows are Pressed
         if snake_direction == curses.KEY_RIGHT or snake_direction == 454:
@@ -277,35 +299,30 @@ def start_snake_game(game_screen_window, screen_height, screen_width):
         elif snake_direction == curses.KEY_DOWN or snake_direction == 456:
             snake_head = (snake[0][0] + 1, snake[0][1])
 
-        # Validate that new snake head is not equal to index 1 of snake
-        if snake_head != snake[1]:
-            # Insert new snake head at 0 index of snake
-            snake.insert(0, snake_head)
+        # Insert new snake head at 0 index of snake
+        snake.insert(0, snake_head)
 
-        else:
-            error_text = "Error: You cannot do reverse turns!"
-
-            game_screen_window.clear()
-            game_screen_window.addstr(
-                4,
-                get_centered_position_x(screen_width, error_text),
-                error_text,
-                curses.A_BOLD | curses.A_STANDOUT,
-            )
-            game_screen_window.refresh()
-
-            time.sleep(2)
+        # Break loop BEFORE drawing if snake head collides with boundaries or its own body
+        # Row 1 is the floor boundary to preserve the Score text on Row 0
+        if (
+            snake[0][0] <= 1
+            or snake[0][0] >= game_screen_height - 1
+            or snake[0][1] <= 0
+            or snake[0][1] >= game_screen_width - 1
+            or snake[0] in snake[1:]
+        ):
             break
 
+        # Process feeding mechanics
         # Check if the SNAKE ate the SNAKE FOOD
         if snake[0] == snake_food:
 
-            # Increase snake speed by 10%
+            # TODO: Increase snake speed
             # game_screen_window.timeout(int(snake_speed * 0.10))
 
             # Increment the game score by 1
             game_score += 1
-            show_game_score_display(game_screen_window, screen_width, game_score)
+            show_game_score_display(game_screen_window, game_screen_width, game_score)
 
             # Remove Current SNAKE FOOD
             snake_food = None
@@ -313,27 +330,39 @@ def start_snake_game(game_screen_window, screen_height, screen_width):
             while snake_food is None:
                 # Create New SNAKE FOOD
                 new_snake_food = (
-                    screen_height // random.randint(2, 4),
-                    screen_width // random.randint(2, 4),
+                    random.randint(1, game_screen_height - 2),
+                    random.randint(1, game_screen_width - 2),
                 )
 
                 # Validate that the new snake food position is not hitting any part of the Snake
-                if new_snake_food in snake:
-                    new_snake_food = None
+                snake_food = new_snake_food if new_snake_food not in snake else None
 
-                else:
-                    snake_food = new_snake_food
-
-            # Display snake food based on the new food position
-            game_screen_window.addch(snake_food[0], snake_food[1], "0")
+            # Wrap the new 'SNAKE FOOD' draw in a try/except to prevent Windows add_wch errors
+            try:
+                game_screen_window.addch(snake_food[0], snake_food[1], "0")
+            except curses.error:
+                pass
 
         else:
-            # Remove the tail or the last tuple in the snake
+            # Remove the Snake Tail (last tuple in the snake)
             tail = snake.pop()
-            game_screen_window.addch(tail[0], tail[1], " ")
+
+            # Wrap the 'SNAKE TAIL' deletion draw in a try/except to prevent Windows add_wch errors
+            try:
+                game_screen_window.addch(tail[0], tail[1], " ")
+            except curses.error:
+                pass
+
+        # Wrap the new 'SNAKE HEAD' draw in a try/except to prevent Windows add_wch errors
+        try:
+            game_screen_window.addch(
+                snake_head[0], snake_head[1], curses.ACS_BLOCK, colors["Green_Black"]
+            )
+        except curses.error:
+            pass
 
     # If game loop breaks, display game over
-    show_game_over_display(game_screen_window, screen_width, game_score)
+    show_game_over_display(game_screen_window, game_screen_width, game_score)
 
 
 def end_program(game_screen_window, screen_width):
@@ -394,20 +423,12 @@ def main(stdscr):
     screen_height, screen_width = stdscr.getmaxyx()
 
     # Create a Header Screen Window
-    show_header_screen_window(screen_height, screen_width, colors)
+    header_screen_window = create_header_screen_window(screen_width, colors)
+    header_screen_window.refresh()
 
     # Create a Game Screen Window
-    game_screen_height, game_screen_width = screen_height - 7, screen_width
-    position_y, position_x = 7, 0
-
-    game_screen_window = create_window(
-        game_screen_height,
-        game_screen_width,
-        position_y,
-        position_x,
-        colors["Black"],
-        colors["Black"],
-    )
+    game_screen_window = create_game_screen_window(screen_height, screen_width, colors)
+    game_screen_window.refresh()
 
     # Enable keypad and specials keys capture and turn off input blocking
     game_screen_window.keypad(True)
@@ -418,8 +439,8 @@ def main(stdscr):
 
         if key_pressed in (ord("\n"), ord("\r"), curses.KEY_ENTER):
             game_screen_window.clear()
+            start_snake_game(game_screen_window, colors)
 
-            start_snake_game(game_screen_window, screen_height, screen_width)
         elif key_pressed in (ord("q"), ord("Q"), ord("\x1b"), 27):
             break
 
