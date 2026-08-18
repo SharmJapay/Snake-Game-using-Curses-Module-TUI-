@@ -17,10 +17,12 @@ def get_initialize_colors():
     curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_BLACK)
     curses.init_pair(2, curses.COLOR_WHITE, curses.COLOR_BLUE)
     curses.init_pair(3, curses.COLOR_RED, curses.COLOR_WHITE)
+    curses.init_pair(4, curses.COLOR_BLACK, curses.COLOR_GREEN)
 
     green_black = curses.color_pair(1)
     white_blue = curses.color_pair(2)
     red_white = curses.color_pair(3)
+    black_green = curses.color_pair(4)
 
     black = curses.COLOR_BLACK
     white = curses.COLOR_WHITE
@@ -29,6 +31,7 @@ def get_initialize_colors():
         "Green_Black": green_black,
         "White_Blue": white_blue,
         "Red_White": red_white,
+        "Black_Green": black_green,
         "Black": black,
         "White": white,
     }
@@ -36,7 +39,7 @@ def get_initialize_colors():
     return colors
 
 
-def get_centered_position_x(screen_width, string_text):
+def get_centered_x_position(screen_width, string_text):
     """Gets the value of the centered x-position of a string
 
     Arguments
@@ -44,15 +47,15 @@ def get_centered_position_x(screen_width, string_text):
         string_text [str] - the string used for the calculation of centered x-position
 
     Returns
-        centered_position_x [window] - the calculated value of the centered x-position
+        centered_x_position [int] - the calculated value of the centered x-position
     """
 
-    centered_position_x = (screen_width - len(string_text)) // 2
+    centered_x_position = (screen_width - len(string_text)) // 2
 
-    return centered_position_x
+    return centered_x_position
 
 
-def show_game_over_display(game_screen_window, screen_width, game_score):
+def display_game_over(game_screen_window, screen_width, game_score):
     """Displays the Game Over once the game conditions are met
 
     Arguments
@@ -67,36 +70,37 @@ def show_game_over_display(game_screen_window, screen_width, game_score):
     game_over_text = (
         f"Game Over. You're Score is {game_score}. (Press ENTER Key to try again)..."
     )
-    x_position = max(0, get_centered_position_x(screen_width, game_over_text))
+    x_position = max(0, get_centered_x_position(screen_width, game_over_text))
 
     try:
         game_screen_window.clear()
-        game_screen_window.addstr(4, x_position, game_over_text, curses.A_STANDOUT)
+        game_screen_window.addstr(4, x_position, game_over_text, curses.A_BOLD)
         game_screen_window.refresh()
     except curses.error:
         pass
 
 
-def show_game_score_display(game_screen_window, screen_width, game_score):
+def display_game_score(game_screen_window, screen_width, game_score, colors):
     """Displays the Game Score
 
     Arguments
         game_screen_window [window] - The initialized game screen window
         screen_width [int] - the width of the screen
         game_score [int] - Value of final game score
+        colors [list] - A list of all the colors initialized
 
     Returns
         None
     """
 
     game_score_text = f"GAME SCORE: {game_score} "
-    x_position = max(0, get_centered_position_x(screen_width, game_score_text))
+    x_position = max(0, get_centered_x_position(screen_width, game_score_text))
 
     try:
         # Move to row 0 and erase only that row's contents
         game_screen_window.move(0, 0)
         game_screen_window.clrtoeol()
-        game_screen_window.addstr(0, x_position, game_score_text, curses.A_BOLD)
+        game_screen_window.addstr(0, x_position, game_score_text, colors["Black_Green"])
         game_screen_window.refresh()
     except curses.error:
         pass
@@ -137,11 +141,12 @@ def create_header_screen_window(screen_width, colors):
         colors [list] - A list of all the colors initialized
 
     Returns
-        header_screen_window - the initialized header screen window created
+        header_screen_window [window] - the initialized header screen window created
     """
 
     header_height, header_width = 7, screen_width
     position_y, position_x = 0, 0
+    bg_color, border_color = colors["White_Blue"], colors["White"]
 
     # Create Header Window with its specifications
     header_screen_window = create_window(
@@ -149,8 +154,8 @@ def create_header_screen_window(screen_width, colors):
         header_width,
         position_y,
         position_x,
-        colors["White_Blue"],
-        colors["White"],
+        bg_color,
+        border_color,
     )
 
     # Define all the texts you want to display
@@ -159,30 +164,20 @@ def create_header_screen_window(screen_width, colors):
     header_text_start_game = "(Start Game) : ENTER Key"
     header_text_quit_game = "(Quit Game) : Q or ESC Key"
 
-    header_screen_window.addstr(
-        1,
-        get_centered_position_x(screen_width, header_text_greeting),
+    header_text_list = [
         header_text_greeting,
-        curses.A_BOLD,
-    )
-    header_screen_window.addstr(
-        2,
-        get_centered_position_x(screen_width, header_text_controller),
         header_text_controller,
-        curses.A_BOLD,
-    )
-    header_screen_window.addstr(
-        3,
-        get_centered_position_x(screen_width, header_text_start_game),
         header_text_start_game,
-        curses.A_BOLD,
-    )
-    header_screen_window.addstr(
-        4,
-        get_centered_position_x(screen_width, header_text_quit_game),
         header_text_quit_game,
-        curses.A_BOLD,
-    )
+    ]
+
+    for index, text in enumerate(header_text_list):
+        header_screen_window.addstr(
+            index + 1,
+            get_centered_x_position(screen_width, text),
+            text,
+            curses.A_BOLD,
+        )
 
     return header_screen_window
 
@@ -196,19 +191,20 @@ def create_game_screen_window(screen_height, screen_width, colors):
         colors [list] - A list of all the colors initialized
 
     Returns
-        game_screen_window - the initialized game screen window created
+        game_screen_window [window] - the initialized game screen window created
     """
 
     game_screen_height, game_screen_width = screen_height - 7, screen_width
     position_y, position_x = 7, 0
+    bg_color, border_color = colors["Green_Black"], colors["Green_Black"]
 
     game_screen_window = create_window(
         game_screen_height,
         game_screen_width,
         position_y,
         position_x,
-        colors["Black"],
-        colors["Black"],
+        bg_color,
+        border_color,
     )
 
     return game_screen_window
@@ -219,6 +215,7 @@ def start_snake_game(game_screen_window, colors):
 
     Arguments
         game_screen_window [window] - The initialized game screen window
+        colors [list] - A list of all the colors initialized
 
     Return
         None
@@ -229,9 +226,8 @@ def start_snake_game(game_screen_window, colors):
     # Initialize game screen: height and width
     game_screen_height, game_screen_width = game_screen_window.getmaxyx()
 
-    # Initialize the starting 'GAME SCORE' and display at the center of the window
+    # Initialize the starting 'GAME SCORE'
     game_score = 0
-    show_game_score_display(game_screen_window, game_screen_width, game_score)
 
     # Initialize the starting 'SNAKE POSITION' within inner window boundaries (tuple)
     snake_position = (game_screen_height // 2, game_screen_width // 2)
@@ -247,7 +243,7 @@ def start_snake_game(game_screen_window, colors):
     snake_direction = curses.KEY_RIGHT
 
     # Initialize the starting 'SNAKE SPEED'
-    snake_speed = 100
+    snake_speed = 200
     game_screen_window.timeout(snake_speed)
 
     # Initialize the starting 'SNAKE FOOD POSITION' safely within inner bounds (tuple)
@@ -264,24 +260,28 @@ def start_snake_game(game_screen_window, colors):
 
     # GAME LOOP EXECUTION - Loops until the snake hits a wall or its own body
     while True:
+        game_screen_window.attron(colors["Green_Black"])
+        game_screen_window.border()
+        game_screen_window.attroff(colors["Green_Black"])
+
+        display_game_score(game_screen_window, game_screen_width, game_score, colors)
 
         # Capture User Key Pressed Value
-        key_pressed = game_screen_window.getch()
+        key = game_screen_window.getch()
 
         # Stops the game once 'Q' or 'ESC' is pressed
-        if key_pressed in (ord("q"), ord("Q"), ord("\x1b"), 27):
+        if key in (ord("q"), ord("Q"), ord("\x1b"), 27):
             break
 
-        if key_pressed != -1:
+        if key != -1:
             # Prevent reversing directly into yourself
-            if key_pressed == curses.KEY_DOWN and snake_direction != curses.KEY_UP:
-                snake_direction = key_pressed
-            elif key_pressed == curses.KEY_UP and snake_direction != curses.KEY_DOWN:
-                snake_direction = key_pressed
-            elif key_pressed == curses.KEY_LEFT and snake_direction != curses.KEY_RIGHT:
-                snake_direction = key_pressed
-            elif key_pressed == curses.KEY_RIGHT and snake_direction != curses.KEY_LEFT:
-                snake_direction = key_pressed
+            valid_down = key == curses.KEY_DOWN and snake_direction != curses.KEY_UP
+            valid_up = key == curses.KEY_UP and snake_direction != curses.KEY_DOWN
+            valid_left = key == curses.KEY_LEFT and snake_direction != curses.KEY_RIGHT
+            valid_right = key == curses.KEY_RIGHT and snake_direction != curses.KEY_LEFT
+
+            if valid_down or valid_up or valid_left or valid_right:
+                snake_direction = key
 
         # Create the 'SNAKE HEAD' based on the current forward cell
         snake_head = (snake[0][0], snake[0][1])
@@ -317,12 +317,16 @@ def start_snake_game(game_screen_window, colors):
         # Check if the SNAKE ate the SNAKE FOOD
         if snake[0] == snake_food:
 
-            # TODO: Increase snake speed
-            # game_screen_window.timeout(int(snake_speed * 0.10))
-
             # Increment the game score by 1
             game_score += 1
-            show_game_score_display(game_screen_window, game_screen_width, game_score)
+            display_game_score(
+                game_screen_window, game_screen_width, game_score, colors
+            )
+
+            # Increase snake speed
+            if game_score % 3 == 0 and snake_speed >= 1:
+                snake_speed -= snake_speed * 0.20
+                game_screen_window.timeout(int(snake_speed))
 
             # Remove Current SNAKE FOOD
             snake_food = None
@@ -362,7 +366,7 @@ def start_snake_game(game_screen_window, colors):
             pass
 
     # If game loop breaks, display game over
-    show_game_over_display(game_screen_window, game_screen_width, game_score)
+    display_game_over(game_screen_window, game_screen_width, game_score)
 
 
 def end_program(game_screen_window, screen_width):
@@ -379,18 +383,18 @@ def end_program(game_screen_window, screen_width):
     ending_message_1 = "Thank you for trying this Snake Game"
     ending_message_2 = "This program will now end..."
 
+    ending_text_list = [ending_message_1, ending_message_2]
+    index_list = [4, 6]
+
     game_screen_window.clear()
 
-    game_screen_window.addstr(
-        4,
-        get_centered_position_x(screen_width, ending_message_1),
-        ending_message_1,
-    )
-    game_screen_window.addstr(
-        6,
-        get_centered_position_x(screen_width, ending_message_2),
-        ending_message_2,
-    )
+    for index, item in enumerate(ending_text_list):
+        game_screen_window.addstr(
+            index_list[index],
+            get_centered_x_position(screen_width, item),
+            item,
+        )
+
     game_screen_window.refresh()
 
     time.sleep(2)
@@ -435,13 +439,13 @@ def main(stdscr):
     game_screen_window.nodelay(True)
 
     while True:
-        key_pressed = game_screen_window.getch()
+        key = game_screen_window.getch()
 
-        if key_pressed in (ord("\n"), ord("\r"), curses.KEY_ENTER):
+        if key in (ord("\n"), ord("\r"), curses.KEY_ENTER):
             game_screen_window.clear()
             start_snake_game(game_screen_window, colors)
 
-        elif key_pressed in (ord("q"), ord("Q"), ord("\x1b"), 27):
+        elif key in (ord("q"), ord("Q"), ord("\x1b"), 27):
             break
 
     atexit.register(end_program, game_screen_window, screen_width)
